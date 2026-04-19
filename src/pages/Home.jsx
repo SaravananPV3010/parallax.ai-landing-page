@@ -14,36 +14,31 @@ import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
 
 // Hero — man standing before vortex of screens
-// import HERO_IMG from '../assets/hero.jpg'; // TODO: Add hero.jpg to src/assets/
-const HERO_IMG = '/placeholder.jpg';
+const HERO_IMG = 'src/assets/hero.jpg';
 // Battle — anonymous glowing teal figure in crowd
-import BATTLE_IMG from '../assets/battle.jpg';
+const BATTLE_IMG = 'src/assets/battle.jpg';
 // Modes editorial image — person surrounded by many monitors
-import COMPARE_IMG from '../assets/compare.jpg';
+const COMPARE_IMG = 'src/assets/compare.jpg';
 // API section — lone coder between two glowing screens outdoors
-import API_IMG from '../assets/api.jpg';
+const API_IMG = 'src/assets/api.jpg';
 // Pixel art retro terminal desk
-const PIXEL_IMG = API_IMG; // Using same as API_IMG
+const PIXEL_IMG = 'src/assets/api.jpg';
 // Leaderboard / CTA ambient — floating figure in infinite library
-// import LIBRARY_IMG from '../assets/library.jpg'; // TODO: Add library.jpg
-const LIBRARY_IMG = '/placeholder.jpg';
+const LIBRARY_IMG = 'src/assets/library.jpg';
 // Jungle TV — raw signal, used as ambient texture in marquee / between sections
-// import JUNGLE_IMG from '../assets/jungle.jpg'; // TODO: Add jungle.jpg
-const JUNGLE_IMG = '/placeholder.jpg';
+const JUNGLE_IMG = 'src/assets/jungle.jpg';
 
 // NEW IMAGES
 // Wireframe hands touching — AI ↔ human interoperability
-import HANDS_IMG from '../assets/hands.png';
+const HANDS_IMG = 'src/assets/hands.png';
 // Person with laptop under floating star screens — hero right column
-// import LAPTOP_IMG from '../assets/laptop.jpg'; // TODO: Add laptop.jpg
-const LAPTOP_IMG = '/placeholder.jpg';
+const LAPTOP_IMG = 'src/assets/laptop.jpg';
 // Person browsing floating color panels — Vision section
-import VISION_IMG from '../assets/vision.png';
+const VISION_IMG = 'src/assets/vision.png';
 // Jungle TV v2 — Footer ambient
-// import JUNGLE2_IMG from '../assets/jungle2.jpg'; // TODO: Add jungle2.jpg
-const JUNGLE2_IMG = '/placeholder.jpg';
+const JUNGLE2_IMG = 'src/assets/jungle2.jpg';
 // Vortex of screens v2 — Signal interstitial
-import VORTEX2_IMG from '../assets/vortex2.png';
+const VORTEX2_IMG = 'src/assets/vortex2.png';
 
 export default function Home() {
   return (
