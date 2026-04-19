@@ -9,11 +9,25 @@ const MODELS = [
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
+const getGroqApiKey = () => {
+  return import.meta.env.VITE_GROQ_API_KEY;
+};
+
+/**
+ * @param {string} prompt
+ * @param {string} model
+ */
 export const callGroqAPI = async (prompt, model) => {
+  const apiKey = getGroqApiKey();
+
+  if (!apiKey) {
+    throw new Error('Missing Groq API key. Set VITE_GROQ_API_KEY in .env.local and restart the dev server.');
+  }
+
   const response = await fetch(GROQ_API_URL, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.REACT_APP_GROQ_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -29,7 +43,13 @@ export const callGroqAPI = async (prompt, model) => {
   }
 
   const data = await response.json();
-  return data.choices[0].message.content;
+  const content = data?.choices?.[0]?.message?.content;
+
+  if (typeof content !== 'string' || !content.trim()) {
+    throw new Error(`Groq model ${model} returned an empty response.`);
+  }
+
+  return content;
 };
 
 export const getRandomModels = () => {
@@ -37,16 +57,35 @@ export const getRandomModels = () => {
   return shuffled.slice(0, 2);
 };
 
+/**
+ * @param {string} prompt
+ */
 export const callTwoModels = async (prompt) => {
   const [modelA, modelB] = getRandomModels();
 
+  /**
+   * @param {string} model
+   */
+  const runModel = async (model) => {
+    try {
+      const response = await callGroqAPI(prompt, model);
+      return { model, response, error: '' };
+    } catch (error) {
+      return {
+        model,
+        response: '',
+        error: error instanceof Error ? error.message : `Groq model ${model} failed.`,
+      };
+    }
+  };
+
   const [responseA, responseB] = await Promise.all([
-    callGroqAPI(prompt, modelA),
-    callGroqAPI(prompt, modelB),
+    runModel(modelA),
+    runModel(modelB),
   ]);
 
   return {
-    modelA: { response: responseA, model: modelA },
-    modelB: { response: responseB, model: modelB },
+    modelA: responseA,
+    modelB: responseB,
   };
 };

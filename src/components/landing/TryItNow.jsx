@@ -2,63 +2,75 @@ import React, { useState, useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { callTwoModels } from '../../api/groqClient';
+import { callGroqAPI, getRandomModels } from '../../api/groqClient';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
+const ModernScrollArea = /** @type {any} */ (ScrollArea);
+
 export default function TryItNow() {
-  const containerRef = useRef(null);
-  const headerRef = useRef(null);
-  const boxRef = useRef(null);
-  const resultRef = useRef(null);
+  const containerRef = useRef(/** @type {HTMLElement | null} */ (null));
+  const headerRef = useRef(/** @type {HTMLDivElement | null} */ (null));
+  const boxRef = useRef(/** @type {HTMLDivElement | null} */ (null));
+  const resultRef = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [textA, setTextA] = useState('');
   const [textB, setTextB] = useState('');
-  const [hasVoted, setHasVoted] = useState(null);
+  const [hasVoted, setHasVoted] = useState(/** @type {null | 'A' | 'B'} */ (null));
   const [models, setModels] = useState({ modelA: '', modelB: '' });
+  const [errorMessage, setErrorMessage] = useState('');
 
   useGSAP(() => {
     // Parallax background scale effect
-    gsap.fromTo(containerRef.current,
-      { backgroundColor: "rgba(0,0,0,0)" },
-      {
-        backgroundColor: "hsl(var(--background) / 0.3)",
-        scrollTrigger: {
-          trigger: containerRef.current,
-          start: "top bottom",
-          end: "center center",
-          scrub: true
+    if (containerRef.current) {
+      gsap.fromTo(
+        containerRef.current,
+        { backgroundColor: 'rgba(0,0,0,0)' },
+        {
+          backgroundColor: 'hsl(var(--background) / 0.3)',
+          scrollTrigger: {
+            trigger: containerRef.current,
+            start: 'top bottom',
+            end: 'center center',
+            scrub: true,
+          },
         }
-      }
-    );
+      );
+    }
 
-    // Header reveal
-    gsap.from(headerRef.current.children, {
-      opacity: 0,
-      y: 30,
-      duration: 1,
-      stagger: 0.15,
-      ease: "power3.out",
-      scrollTrigger: { toggleActions: "play none none reverse",
-        trigger: headerRef.current,
-        start: "top 80%",
-      }
-    });
+    if (headerRef.current) {
+      gsap.from(headerRef.current.children, {
+        opacity: 0,
+        y: 30,
+        duration: 1,
+        stagger: 0.15,
+        ease: 'power3.out',
+        scrollTrigger: {
+          toggleActions: 'play none none reverse',
+          trigger: headerRef.current,
+          start: 'top 80%',
+        },
+      });
+    }
 
     // Box float up
-    gsap.from(boxRef.current, {
-      opacity: 0,
-      y: 60,
-      rotationX: -5,
-      duration: 1.2,
-      ease: "power3.out",
-      scrollTrigger: { toggleActions: "play none none reverse",
-        trigger: boxRef.current,
-        start: "top 85%",
-      }
-    });
+    if (boxRef.current) {
+      gsap.from(boxRef.current, {
+        opacity: 0,
+        y: 60,
+        rotationX: -5,
+        duration: 1.2,
+        ease: 'power3.out',
+        scrollTrigger: {
+          toggleActions: 'play none none reverse',
+          trigger: boxRef.current,
+          start: 'top 85%',
+        },
+      });
+    }
 
   }, { scope: containerRef });
 
@@ -92,36 +104,71 @@ export default function TryItNow() {
   const handleBattle = async () => {
     if (!prompt.trim() || isGenerating) return;
     setIsGenerating(true);
+    setErrorMessage('');
     setTextA('');
     setTextB('');
     setHasVoted(null);
-    setModels({ modelA: '', modelB: '' });
+    const [modelA, modelB] = getRandomModels();
+    setModels({ modelA, modelB });
 
     try {
-      const result = await callTwoModels(prompt);
-      setModels({ modelA: result.modelA.model, modelB: result.modelB.model });
+      /**
+       * @param {(value: string) => void} setText
+       * @param {string} content
+       * @param {string} fallbackText
+       * @returns {Promise<void>}
+       */
+      const animateText = async (setText, content, fallbackText) => {
+        const text = content?.trim() ? content : fallbackText;
 
-      const responseA = result.modelA.response;
-      const responseB = result.modelB.response;
+        await new Promise((resolve) => {
+          let index = 0;
+          const speed = 20;
+          const interval = setInterval(() => {
+            setText(text.slice(0, index));
+            index += 1;
 
-      let i = 0;
-      const speed = 20; // ms per char
-      const maxLen = Math.max(responseA.length, responseB.length);
+            if (index > text.length) {
+              clearInterval(interval);
+              resolve(undefined);
+            }
+          }, speed);
+        });
+      };
 
-      const interval = setInterval(() => {
-        if (i <= responseA.length) setTextA(responseA.slice(0, i));
-        if (i <= responseB.length) setTextB(responseB.slice(0, i));
-        i++;
-        if (i > maxLen) {
-          clearInterval(interval);
-          setIsGenerating(false);
+      /**
+       * @param {string} selectedModel
+       * @param {(value: string) => void} setText
+       * @param {string} fallbackLabel
+       */
+      const runModel = async (selectedModel, setText, fallbackLabel) => {
+        try {
+          const response = await callGroqAPI(prompt, selectedModel);
+          await animateText(setText, response, `${fallbackLabel} returned no response.`);
+          return { model: selectedModel, error: '' };
+        } catch (modelError) {
+          const message = modelError instanceof Error ? modelError.message : `${fallbackLabel} failed.`;
+          await animateText(setText, '', message);
+          return { model: selectedModel, error: message };
         }
-      }, speed);
+      };
+
+      const [resultA, resultB] = await Promise.all([
+        runModel(modelA, setTextA, 'Model A'),
+        runModel(modelB, setTextB, 'Model B'),
+      ]);
+
+      if (resultA.error || resultB.error) {
+        setErrorMessage('One or both models did not return a usable answer.');
+      }
     } catch (error) {
       console.error('Error calling Groq API:', error);
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to reach Groq right now.');
       setIsGenerating(false);
-      // Handle error - maybe show a message
+      return;
     }
+
+    setIsGenerating(false);
   };
 
   return (
@@ -163,28 +210,38 @@ export default function TryItNow() {
             </button>
           </div>
 
+          {errorMessage && (
+            <div className="border-b border-foreground/15 px-8 py-4 text-[11px] font-mono tracking-wide text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
           {/* Models Row */}
           <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-foreground/15">
             {/* Model A */}
-            <div className="p-8 md:p-10 flex flex-col min-h-[320px]">
+            <div className="p-8 md:p-10 flex flex-col h-[320px] md:h-[420px] min-h-0 overflow-hidden">
               <div className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground/50 uppercase mb-8">
                 MODEL A — HIDDEN
               </div>
-              <div className="font-mono text-[13px] leading-[2] text-foreground/90 whitespace-pre-wrap flex-1">
-                {textA || <span className="text-foreground">Waiting for your prompt...</span>}
-                {isGenerating && <span className="inline-block w-2 h-4 bg-coral animate-pulse ml-1 align-middle" />}
-              </div>
+              <ModernScrollArea className="flex-1 min-h-0">
+                <div className="font-mono text-[13px] leading-[2] text-foreground/90 whitespace-pre-wrap pr-4">
+                  {textA || <span className="text-foreground">Waiting for your prompt...</span>}
+                  {isGenerating && <span className="inline-block w-2 h-4 bg-coral animate-pulse ml-1 align-middle" />}
+                </div>
+              </ModernScrollArea>
             </div>
 
             {/* Model B */}
-            <div className="p-8 md:p-10 flex flex-col min-h-[320px]">
+            <div className="p-8 md:p-10 flex flex-col h-[320px] md:h-[420px] min-h-0 overflow-hidden">
               <div className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground/50 uppercase mb-8">
                 MODEL B — HIDDEN
               </div>
-              <div className="font-mono text-[13px] leading-[2] text-foreground/90 whitespace-pre-wrap flex-1">
-                {textB || <span className="text-foreground">Waiting for your prompt...</span>}
-                {isGenerating && <span className="inline-block w-2 h-4 bg-coral animate-pulse ml-1 align-middle" />}
-              </div>
+              <ModernScrollArea className="flex-1 min-h-0">
+                <div className="font-mono text-[13px] leading-[2] text-foreground/90 whitespace-pre-wrap pr-4">
+                  {textB || <span className="text-foreground">Waiting for your prompt...</span>}
+                  {isGenerating && <span className="inline-block w-2 h-4 bg-coral animate-pulse ml-1 align-middle" />}
+                </div>
+              </ModernScrollArea>
             </div>
           </div>
 
